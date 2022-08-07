@@ -16,7 +16,8 @@ pub struct Minesweeper {
     height: usize,
     open_fields: HashSet<Position>,
     mines: HashSet<Position>, //Should use list or vector as more performant, but more convenient to use hashset
-    flagged_fields: HashSet<Position>
+    flagged_fields: HashSet<Position>,
+    lost: bool
 }
 
 impl Display for Minesweeper {
@@ -26,7 +27,10 @@ impl Display for Minesweeper {
                 let pos = (x,y);
 
                 if !self.open_fields.contains(&pos){
-                    if self.flagged_fields.contains(&pos){
+                    if self.lost && self.mines.contains(&pos) {
+                        f.write_str("💣 ")?;
+                    }
+                    else if self.flagged_fields.contains(&pos){
                         f.write_str("✔ ")?;
                     }else{
                         f.write_str("🟪 ")?;
@@ -34,7 +38,14 @@ impl Display for Minesweeper {
                 } else if self.mines.contains(&pos){
                     f.write_str("💣 ")?;
                 } else {
-                    write!(f, " {} ", self.neighboring_mines(pos))?;
+                    let mine_count = self.neighboring_mines(pos);
+
+                    if mine_count > 0{
+                        write!(f, " {} ", mine_count)?;
+                    } else{
+                        f.write_str( "⬜ ")?;
+                    }
+                    
                 }
             }
             f.write_char('\n')?;
@@ -59,7 +70,9 @@ impl Minesweeper {
 
                 mines
             }, 
-            flagged_fields: HashSet::new() 
+            flagged_fields: HashSet::new() ,
+            lost: false,
+
         }
     }
 
@@ -77,7 +90,24 @@ impl Minesweeper {
     }
 
     pub fn open(&mut self, position: Position) -> Option<OpenResult>{
-        if self.flagged_fields.contains(&position){
+        if self.open_fields.contains(&position) {
+            let mine_count = self.neighboring_mines(position);
+            let flag_count = self.iter_neighbors(position).filter(|neighbor| self.flagged_fields.contains(neighbor)).count() as u8;
+            
+            if mine_count == flag_count {
+                for neighbor in self.iter_neighbors(position){
+                    if !self.flagged_fields.contains(&neighbor) && !self.open_fields.contains(&neighbor){
+                        self.open(neighbor);
+                    }
+                    }
+                }
+            
+
+            return None;
+        }
+
+
+        if self.lost || self.flagged_fields.contains(&position){
             return None;
         }
         
@@ -86,14 +116,25 @@ impl Minesweeper {
         let is_mine = self.mines.contains(&position);
 
         if is_mine {
+            self.lost = true;
             Some(OpenResult:: Mine)
         } else {
-            Some(OpenResult::Nomine(self.neighboring_mines(position)))
+            let mine_count = self.neighboring_mines(position);
+
+            if mine_count==0{
+                for neighbor in self.iter_neighbors(position){
+                    if !self.flagged_fields.contains(&neighbor){
+                        self.open(neighbor);
+                    }
+                }
+            }
+
+            Some(OpenResult::Nomine(mine_count))
         }
     }
 
     pub fn toggle_flag(&mut self,pos:Position) {
-        if self.open_fields.contains(&pos){
+        if self.lost || self.open_fields.contains(&pos){
             return ;
         }
 

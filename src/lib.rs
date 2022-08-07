@@ -7,7 +7,7 @@ use minesweeper::*;
 use wasm_bindgen::prelude::*;
 
 thread_local! {
-    static MINESWEEPER: RefCell<Minesweeper> = RefCell::new(Minesweeper::new(10,10,5));
+    static MINESWEEPER: RefCell<Minesweeper> = RefCell::new(Minesweeper::new(10,10,15));
 }
 
 
@@ -25,5 +25,12 @@ pub fn get_state() -> String {
 pub fn open_field(x :usize, y:usize) {
     MINESWEEPER.with(|ms|  {
         ms.borrow_mut().open((x,y));
+    });
+}
+
+#[wasm_bindgen(js_name = toggleFlag)]
+pub fn toggle_flag(x :usize, y:usize) {
+    MINESWEEPER.with(|ms|  {
+        ms.borrow_mut().toggle_flag((x,y));
     });
 }
